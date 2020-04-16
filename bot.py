@@ -1,8 +1,7 @@
 from discord.ext import commands
-from data import db_session
+from db import db_session
 from settings import TOKEN
-from music import Music
-
+from cogs import Music
 
 
 class PeyokaBot(commands.Bot):
@@ -15,7 +14,7 @@ class PeyokaBot(commands.Bot):
 
 
 if __name__ == '__main__':
-    db_session.global_init("db/music.sqlite")
+    db_session.global_init("db/db.sqlite")
     bot = PeyokaBot()
     bot.add_cog(Music(bot))
     bot.run(TOKEN)
