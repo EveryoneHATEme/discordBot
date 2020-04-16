@@ -20,5 +20,6 @@ class Downloader:
     def download_audio(self, url: str):
         print(f'start download {url}')
         with youtube_dl.YoutubeDL(ydl_options) as yt_downloader:
+            yt_downloader.extract_info()
             yt_downloader.download([url])
         print('got it!')

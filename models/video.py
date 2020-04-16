@@ -1,5 +1,12 @@
-import youtube_dl
 import asyncio
+import os
+
+import youtube_dl
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+from settings import YOUTUBE_API_KEY
+
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -18,16 +25,35 @@ ytdl_format_options = {
 ytdl = youtube_dl.YoutubeDL(params=ytdl_format_options)
 
 
+def youtube_search(query: str):
+    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+
+    search_response = youtube.search().list(
+        q=query,
+        part='id,snippet',
+        maxResults=1,
+        type='video'
+    ).execute()
+
+    for search_result in search_response.get('items', []):
+        return search_result['id']['videoId']
+
+
 class Video:
-    def __init__(self, url: str = None, name: str = None):
+    def __init__(self, url: str = None, title: str = None):
         self.url = url
-        self.name = name
+        self.title = title
 
     async def get_music_url(self):
         if self.url is not None:
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=self.url, download=False))
             return data['url']
-        elif self.name is not None:
-            # надо как-то научиться искать по названию
-            pass
+        elif self.title is not None:
+            url = youtube_search(self.title)
+            if not url:
+                return
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(
+                url="https://www.youtube.com/watch?v=" + url, download=False))
+            return data['url']
