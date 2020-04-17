@@ -1,5 +1,5 @@
 import re
-from pprint import pprint
+import asyncio
 
 import discord
 from discord.ext import commands
@@ -23,8 +23,10 @@ class Music(commands.Cog):
     async def play(self, context: commands.context.Context, *args):
         query = " ".join(args).strip()
         if not query:
-            await self.play_next(context)
+            await context.send(f'Empty request')
             return
+        if not self.voice_client(context):
+            self.clear_playlist(context)
         if self.is_yt_video(query):
             music_info: dict = await Video(url=query).get_music_info()
             self.add_to_playlist(context, music_info['title'], music_info['url'])
@@ -42,27 +44,35 @@ class Music(commands.Cog):
         result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
         if not result:
             await context.send(f'Playlist is empty')
+            voice_client = self.voice_client(context)
+            if voice_client:
+                await self.disconnect(context)
             return
         voice_client = self.voice_client(context)
         if not voice_client:
             voice_client: discord.voice_client.VoiceClient = await voice_channel.connect()
-        if not voice_client.is_playing():
+        if not voice_client.is_playing() and not voice_client.is_paused():
             voice_client.play(discord.FFmpegPCMAudio(result[0].url, **ffmpeg_options))
             await context.send(f'Playing {result[0].title}')
+            while voice_client.is_playing() or voice_client.is_paused():
+                await asyncio.sleep(1)
+            await self.play_next(context)
 
-    @commands.command('next')
+    @commands.command(aliases=['next', 'skip'])
     async def play_next(self, context: commands.context.Context):
         voice_client = self.voice_client(context)
-        voice_channel = self.voice_channel(context)
         if not voice_client:
-            voice_client: discord.voice_client.VoiceClient = await voice_channel.connect()
+            return
+        voice_channel = self.voice_channel(context)
         session = db_session.create_session()
         result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
         if result:
             session.delete(result[0])
             session.commit()
             voice_client.stop()
-        await self.__play(context)
+            await self.__play(context)
+        else:
+            await self.disconnect(context)
 
     @commands.command('pause')
     async def pause(self, context: commands.context.Context):
@@ -75,6 +85,13 @@ class Music(commands.Cog):
         voice_client = self.voice_client(context)
         if voice_client and voice_client.is_paused():
             voice_client.resume()
+
+    @commands.command(aliases=['stop', 'leave', 'dc'])
+    async def disconnect(self, context: commands.context.Context):
+        voice_client = self.voice_client(context)
+        if voice_client:
+            await voice_client.disconnect()
+            self.clear_playlist(context)
 
     def voice_client(self, context: commands.context.Context) -> discord.voice_client.VoiceClient:
         """
@@ -97,6 +114,14 @@ class Music(commands.Cog):
             voice_client: discord.voice_client.VoiceClient = await voice_channel.connect()
         await context.send(f'{voice_client.is_playing()}')
 
+    def clear_playlist(self, context: commands.context.Context):
+        voice_channel = self.voice_channel(context)
+        session = db_session.create_session()
+        result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
+        for instance in result:
+            session.delete(instance)
+            session.commit()
+
     @staticmethod
     def add_to_playlist(context: commands.context.Context, title, url):
         session = db_session.create_session()
@@ -112,5 +137,17 @@ class Music(commands.Cog):
     @staticmethod
     def is_yt_playlist(url: str) -> bool:
         if re.match(r"(https?://)?(www\.)?youtube\.com/playlist\?", url):
+            return True
+        return False
+
+    @staticmethod
+    def is_yamusic_playlist(url: str) -> bool:
+        if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/album/\d+($|/)", url):
+            return True
+        return False
+
+    @staticmethod
+    def is_yamusic_track(url: str) -> bool:
+        if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/album/\d+/track/\d+($|/$)", url):
             return True
         return False
