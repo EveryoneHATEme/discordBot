@@ -5,6 +5,9 @@ import discord
 from discord.ext import commands
 
 from utils import Video
+from utils.video import youtube_playlist
+from utils import ya_music
+
 from db.models.guilds_to_urls import GuildsToUrls
 from db import db_session
 
@@ -31,8 +34,24 @@ class Music(commands.Cog):
             music_info: dict = await Video(url=query).get_music_info()
             self.add_to_playlist(context, music_info['title'], music_info['url'])
         elif self.is_yt_playlist(query):
-            # TODO: playlist handler
-            pass
+            video_ids = youtube_playlist(query)
+            for vid_id in video_ids:
+                music_info: dict = await Video(video_id=vid_id).get_music_info()
+                self.add_to_playlist(context, music_info['title'], music_info['url'])
+        elif self.is_yamusic_playlist(query):
+            query = query.split("/")
+            tracks = ya_music.tracks_in_album(int(query[-1]) if query[-1] else int(query[-2]))
+            for track in tracks:
+                link = ya_music.direct_link(track["id"])
+                if link:
+                    self.add_to_playlist(context, track["artist"] + ' - ' + track["title"], link)
+        elif self.is_yamusic_track(query):
+            query = query.split("/")
+            track_id = int(query[-1]) if query[-1] else int(query[-2])
+            track = ya_music.track_info(track_id)
+            link = ya_music.direct_link(track_id)
+            if link and track:
+                self.add_to_playlist(context, track["artist"] + ' - ' + track["title"], link)
         else:
             music_info: dict = await Video(title=query).get_music_info()
             self.add_to_playlist(context, music_info['title'], music_info['url'])
@@ -142,7 +161,7 @@ class Music(commands.Cog):
 
     @staticmethod
     def is_yamusic_playlist(url: str) -> bool:
-        if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/album/\d+($|/)", url):
+        if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/album/\d+($|/$)", url):
             return True
         return False
 
