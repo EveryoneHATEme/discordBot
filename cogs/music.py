@@ -100,10 +100,13 @@ class Music(commands.Cog):
             return
         voice_channel = self.voice_channel(context)
         session = db_session.create_session()
+        result_list = []
         result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
         if result:
             for i in range(len(result)):
-                await context.send(f'{i + 1}: {result[i].title}')
+                result_list.append(f'{i + 1}: {result[i].title}')
+            await context.send("\n".join(result_list))
+            
         else:
             await context.send(f'Playlist is empty')
             await self.disconnect(context)
