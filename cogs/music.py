@@ -103,6 +103,41 @@ class Music(commands.Cog):
         else:
             await self.disconnect(context)
 
+    @commands.command('list')
+    async def songs_list(self, context: commands.context.Context):
+        voice_client = self.voice_client(context)
+        if not voice_client:
+            return
+        voice_channel = self.voice_channel(context)
+        session = db_session.create_session()
+        result_list = []
+        result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
+        if result:
+            for i in range(len(result)):
+                result_list.append(f'{i + 1}: {result[i].title}')
+            await context.send("\n".join(result_list))
+            
+        else:
+            await context.send(f'Playlist is empty')
+            await self.disconnect(context)
+
+    @commands.command('p_clear')
+    async def p_clear(self, context: commands.context.Context):
+        voice_client = self.voice_client(context)
+        if not voice_client:
+            return
+        voice_channel = self.voice_channel(context)
+        session = db_session.create_session()
+        result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
+        if result:
+            for i in range(len(result)):
+                session.delete(result[i])
+            session.commit()
+            await context.send(f'Playlist is clear now')
+            voice_client.stop()
+        else:
+            await self.disconnect(context)
+
     @commands.command('pause')
     async def pause(self, context: commands.context.Context):
         voice_client = self.voice_client(context)
