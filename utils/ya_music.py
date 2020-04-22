@@ -16,6 +16,16 @@ def tracks_in_album(album_id: int) -> list:
     return result
 
 
+def tracks_in_playlist(user_id, playlist_id: int) -> list:
+    client = Client()
+    info = client.users_playlists(playlist_id, user_id)
+    result = []
+    for track in info[0]["tracks"]:
+        trk_info = track_info(track.id)
+        result.append({"artist": trk_info["artist"], "title": trk_info["title"], "id": track.id})
+    return result
+
+
 def direct_link(track_id: int) -> str:
     client = Client()
     try:

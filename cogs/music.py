@@ -45,6 +45,15 @@ class Music(commands.Cog):
                 link = ya_music.direct_link(track["id"])
                 if link:
                     self.add_to_playlist(context, track["artist"] + ' - ' + track["title"], link)
+        elif self.is_yamusic_user_playlist(query):
+            query = query.split("/")
+            user_id = query[-3] if query[-1] else query[-4]
+            playlist_id = int(query[-1]) if query[-1] else int(query[-2])
+            tracks = ya_music.tracks_in_playlist(user_id, playlist_id)
+            for track in tracks:
+                link = ya_music.direct_link(track["id"])
+                if link:
+                    self.add_to_playlist(context, track["artist"] + ' - ' + track["title"], link)
         elif self.is_yamusic_track(query):
             query = query.split("/")
             track_id = int(query[-1]) if query[-1] else int(query[-2])
@@ -73,6 +82,7 @@ class Music(commands.Cog):
         if not voice_client.is_playing() and not voice_client.is_paused():
             voice_client.play(discord.FFmpegPCMAudio(result[0].url, **ffmpeg_options))
             await context.send(f'Playing {result[0].title}')
+            await asyncio.sleep(5)
             while voice_client.is_playing() or voice_client.is_paused():
                 await asyncio.sleep(1)
             await self.play_next(context)
@@ -168,5 +178,11 @@ class Music(commands.Cog):
     @staticmethod
     def is_yamusic_track(url: str) -> bool:
         if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/album/\d+/track/\d+($|/$)", url):
+            return True
+        return False
+
+    @staticmethod
+    def is_yamusic_user_playlist(url: str) -> bool:
+        if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/users/\w+/playlists/\d+($|/$)", url):
             return True
         return False
