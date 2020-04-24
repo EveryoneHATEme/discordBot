@@ -7,6 +7,7 @@ from discord.ext import commands
 from utils import Video
 from utils.video import youtube_playlist
 from utils import ya_music
+from gtts import gTTS
 
 from db.models.guilds_to_urls import GuildsToUrls
 from db import db_session
@@ -67,6 +68,20 @@ class Music(commands.Cog):
         else:
             music_info: dict = await Video(title=query).get_music_info()
             self.add_to_playlist(context, music_info['title'], music_info['url'])
+        if not already_play:
+            await self.__play(context)
+
+    @commands.command('speak')
+    async def speak(self, context: commands.context.Context, *args):
+        already_play = False
+        text = " ".join(args).strip()
+        print(text)
+        tts = gTTS(text, lang="ru")
+        urls = tts.get_urls()
+        if not self.voice_client(context):
+            self.clear_playlist(context)
+        for i in range(len(urls)):
+            self.add_to_playlist(context, f"{text[:30]} part {i+1}", urls[i])
         if not already_play:
             await self.__play(context)
 
