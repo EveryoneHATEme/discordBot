@@ -141,8 +141,9 @@ class Music(commands.Cog):
         if result:
             for i in range(len(result)):
                 result_list.append(f'{i + 1}: {result[i].title}')
-            await context.send("\n".join(result_list))
-            
+            res_str = "\n".join(result_list)
+            for str in [res_str[y - 1998:y] for y in range(1998, len(res_str) + 1998, 1998)]:
+                await context.send(str)
         else:
             await context.send(f'Playlist is empty')
             await self.disconnect(context)
