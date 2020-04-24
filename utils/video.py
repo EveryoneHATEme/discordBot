@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import time
 
 import youtube_dl
 from googleapiclient.discovery import build
@@ -26,30 +27,32 @@ ytdl_format_options = {
 ytdl = youtube_dl.YoutubeDL(params=ytdl_format_options)
 
 
-def youtube_search(query: str):
-    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+async def youtube_search(query: str):
+    loop = asyncio.get_event_loop()
+    youtube = await loop.run_in_executor(None, lambda: build('youtube', 'v3', developerKey=YOUTUBE_API_KEY))
 
-    search_response = youtube.search().list(
+    search_response = await loop.run_in_executor(None, lambda: youtube.search().list(
         q=query,
         part='id,snippet',
         maxResults=1,
         type='video'
-    ).execute()
+    ).execute())
 
     for search_result in search_response.get('items', []):
         pprint(search_result)
         return search_result['id']['videoId']
 
 
-def youtube_playlist(query: str):
+async def youtube_playlist(query: str):
     playlist_id = query.split("list=")[1]
-    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+    loop = asyncio.get_event_loop()
+    youtube = await loop.run_in_executor(None, lambda: build('youtube', 'v3', developerKey=YOUTUBE_API_KEY))
 
-    response = youtube.playlistItems().list(
+    response = await loop.run_in_executor(None, lambda: youtube.playlistItems().list(
         part="snippet",
         playlistId=playlist_id,
         maxResults=50
-    ).execute()
+    ).execute())
 
     result = []
     for item in response["items"]:

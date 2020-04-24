@@ -36,10 +36,12 @@ class Music(commands.Cog):
             music_info: dict = await Video(url=query).get_music_info()
             self.add_to_playlist(context, music_info['title'], music_info['url'])
         elif self.is_yt_playlist(query):
-            video_ids = youtube_playlist(query)
-            for vid_id in video_ids:
-                music_info: dict = await Video(video_id=vid_id).get_music_info()
-                self.add_to_playlist(context, music_info['title'], music_info['url'])
+            video_ids = await youtube_playlist(query)
+            music_info: dict = await Video(video_id=video_ids[0]).get_music_info()
+            self.add_to_playlist(context, music_info['title'], music_info['url'])
+            already_play = True
+            await asyncio.gather(self.add_to_playlist_from_album_yt(context, video_ids[1:]),
+                                 self.__play(context))
         elif self.is_yamusic_playlist(query):
             query = query.split("/")
             track = await ya_music.tracks_in_album(int(query[-1]), take_first=True)
@@ -47,7 +49,7 @@ class Music(commands.Cog):
             if link and track:
                 self.add_to_playlist(context, track[0]["artist"] + ' - ' + track[0]["title"], link)
             already_play = True
-            await asyncio.gather(self.add_to_playlist_from_album(context, int(query[-1])),
+            await asyncio.gather(self.add_to_playlist_from_album_ya_music(context, int(query[-1])),
                                  self.__play(context))
         elif self.is_yamusic_user_playlist(query):
             query = query.split("/")
@@ -85,12 +87,17 @@ class Music(commands.Cog):
         if not already_play:
             await self.__play(context)
 
-    async def add_to_playlist_from_album(self, context: commands.context.Context, album_id: int):
+    async def add_to_playlist_from_album_ya_music(self, context: commands.context.Context, album_id: int):
         tracks = await ya_music.tracks_in_album(int(album_id))
         for track in tracks[1:]:
             link = await ya_music.direct_link(track["id"])
             if link:
                 self.add_to_playlist(context, track["artist"] + ' - ' + track["title"], link)
+
+    async def add_to_playlist_from_album_yt(self, context: commands.context.Context, video_ids: list):
+        for vid_id in video_ids:
+            music_info: dict = await Video(video_id=vid_id).get_music_info()
+            self.add_to_playlist(context, music_info['title'], music_info['url'])
 
     async def __play(self, context: commands.context.Context):
         voice_channel = self.voice_channel(context)
