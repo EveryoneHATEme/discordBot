@@ -1,14 +1,12 @@
 import re
 import asyncio
-
+import requests, html2text
 import discord
 from discord.ext import commands
-
 from utils import Video
 from utils.video import youtube_playlist
 from utils import ya_music
 from gtts import gTTS
-
 from db.models.guilds_to_urls import GuildsToUrls
 from db import db_session
 
@@ -74,7 +72,18 @@ class Music(commands.Cog):
     @commands.command('speak')
     async def speak(self, context: commands.context.Context, *args):
         already_play = False
-        text = " ".join(args).strip()
+        all_args = " ".join(args).strip()
+        if all_args[:4] == "http":
+            html = requests.get(all_args).text
+            text_maker = html2text.HTML2Text()
+            text_maker.ignore_links = True
+            text_maker.bypass_tables = False
+            text_maker.ignore_images = True
+            text_maker.ignore_emphasis = True
+            text_maker.ignore_tables = True
+            text = text_maker.handle(html)
+        else:
+            text = all_args
         print(text)
         tts = gTTS(text, lang="ru")
         urls = tts.get_urls()
@@ -142,7 +151,7 @@ class Music(commands.Cog):
             for i in range(len(result)):
                 result_list.append(f'{i + 1}: {result[i].title}')
             res_str = "\n".join(result_list)
-            for str in [res_str[y - 1998:y] for y in range(1998, len(res_str) + 1998, 1998)]:
+            for str in [res_str[y - 1998:y] for y in range(1998 , len(res_str) + 1998, 1998)]:
                 await context.send(str)
         else:
             await context.send(f'Playlist is empty')
