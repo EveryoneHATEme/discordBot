@@ -10,4 +10,6 @@ class GuildsToUrls(SqlAlchemyBase):
                            primary_key=True, autoincrement=True)
     guild = sqlalchemy.Column(sqlalchemy.INTEGER, nullable=False)
     title = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    url = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    url = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+    track_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
+    service = sqlalchemy.Column(sqlalchemy.String, nullable=True)

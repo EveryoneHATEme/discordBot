@@ -40,7 +40,7 @@ async def direct_link(track_id: int) -> str:
     try:
         info = await loop.run_in_executor(None, lambda: client.tracks_download_info(track_id, get_direct_links=True))
         return info[0]["direct_link"]
-    except BaseException:
+    except Exception:
         return ""
 
 
@@ -54,5 +54,5 @@ async def track_info(track_id: int) -> dict:
             return dict()
         artist = info[0]["artists"][0]["name"]
         return {"artist": artist, "title": title}
-    except BaseException:
+    except Exception:
         return dict()

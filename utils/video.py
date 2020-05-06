@@ -9,7 +9,6 @@ from googleapiclient.errors import HttpError
 
 from settings import YOUTUBE_API_KEY
 
-from pprint import pprint
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
@@ -39,7 +38,6 @@ async def youtube_search(query: str):
     ).execute())
 
     for search_result in search_response.get('items', []):
-        pprint(search_result)
         return search_result['id']['videoId']
 
 
@@ -56,7 +54,7 @@ async def youtube_playlist(query: str):
 
     result = []
     for item in response["items"]:
-        result.append(item["snippet"]["resourceId"]["videoId"])
+        result.append((item["snippet"]["resourceId"]["videoId"], item['snippet']['title']))
     return result
 
 
@@ -72,7 +70,7 @@ class Video:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=self.url, download=False))
             return data
         elif self.title is not None:
-            vid_id = youtube_search(self.title)
+            vid_id = await youtube_search(self.title)
             if not vid_id:
                 return
             loop = asyncio.get_event_loop()
