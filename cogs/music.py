@@ -1,14 +1,16 @@
 import re
 import asyncio
+import requests
 
 import discord
 from discord.ext import commands
+from gtts import gTTS
+import html2text
 
 from utils import Video
 from utils.video import youtube_playlist
 from utils import ya_music
 from utils import Query
-from gtts import gTTS
 
 from db.models.guilds_to_urls import GuildsToUrls
 from db import db_session
@@ -27,13 +29,12 @@ class Music(commands.Cog):
     async def add_track(self, context: commands.context.Context, *args):
         query = Query(args)
         if not query:
-            await context.send('Empty request')
             await context.send('Please call this command in format'
                                ' !play <song name or song video link>')
             return
 
         if not self.voice_client(context):
-            self.clear_playlist(context)
+            await self.clear_playlist(context)
 
         if query.is_yt_video():
             music_info: dict = await Video(url=str(query)).get_music_info()
@@ -71,6 +72,30 @@ class Music(commands.Cog):
         if not voice_client.is_playing() and not voice_client.is_paused():
             self._play(context, voice_client)
 
+    @commands.command('speak')
+    async def speak(self, context: commands.context.Context, *args):
+        already_play = False
+        all_args = " ".join(args).strip()
+        if all_args[:4] == "http":
+            html = requests.get(all_args).text
+            text_maker = html2text.HTML2Text()
+            text_maker.ignore_links = True
+            text_maker.bypass_tables = False
+            text_maker.ignore_images = True
+            text_maker.ignore_emphasis = True
+            text_maker.ignore_tables = True
+            text = text_maker.handle(html)
+        else:
+            text = all_args
+        tts = gTTS(text, lang="ru")
+        urls = tts.get_urls()
+        if not self.voice_client(context):
+            await self.clear_playlist(context)
+        for i in range(len(urls)):
+            self.add_to_playlist(context, f"{text[:30]} part {i+1}", urls[i])
+        if not already_play:
+            await self._play(context, self.voice_client(context))
+
     def _play(self, context: commands.context.Context, voice_client: discord.voice_client.VoiceClient):
         session = db_session.create_session()
         track = session.query(GuildsToUrls).filter(GuildsToUrls.guild == context.guild.id).first()
@@ -103,6 +128,25 @@ class Music(commands.Cog):
         session.commit()
         self._play(context, voice_client)
 
+    @commands.command('list')
+    async def songs_list(self, context: commands.context.Context):
+        voice_client = self.voice_client(context)
+        if not voice_client:
+            return
+        voice_channel = self.voice_channel(context)
+        session = db_session.create_session()
+        result_list = []
+        result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
+        if result:
+            for i in range(len(result)):
+                result_list.append(f'{i + 1}: {result[i].title}')
+            res_str = "\n".join(result_list)
+            for msg in [res_str[y - 1998:y] for y in range(1998, len(res_str) + 1998, 1998)]:
+                await context.send(msg)
+        else:
+            await context.send(f'Playlist is empty')
+            await self.disconnect(context)
+
     @add_track.error
     async def add_track_error(self, context, error):
         print(f'An error occurred:\n{error}')
@@ -111,6 +155,18 @@ class Music(commands.Cog):
     async def p_next(self, context: commands.context.Context):
         voice_client = self.voice_client(context)
         voice_client.stop()
+
+    @commands.command('pause')
+    async def pause(self, context: commands.context.Context):
+        voice_client = self.voice_client(context)
+        if voice_client and voice_client.is_playing():
+            voice_client.pause()
+
+    @commands.command('resume')
+    async def resume(self, context: commands.context.Context):
+        voice_client = self.voice_client(context)
+        if voice_client and voice_client.is_paused():
+            voice_client.resume()
 
     def voice_client(self, context: commands.context.Context) -> discord.voice_client.VoiceClient:
         """
@@ -125,7 +181,8 @@ class Music(commands.Cog):
     def voice_channel(context: commands.context.Context) -> discord.VoiceChannel:
         return context.message.author.voice.channel
 
-    def clear_playlist(self, context: commands.context.Context):
+    @commands.command('p_clear')
+    async def clear_playlist(self, context: commands.context.Context):
         voice_channel = self.voice_channel(context)
         session = db_session.create_session()
         result = session.query(GuildsToUrls).filter(GuildsToUrls.guild == voice_channel.guild.id).all()
@@ -146,4 +203,4 @@ class Music(commands.Cog):
             if message is not None:
                 await context.send(message)
             await voice_client.disconnect()
-            self.clear_playlist(context)
+            await self.clear_playlist(context)
