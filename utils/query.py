@@ -18,10 +18,18 @@ class Query:
         return int(lst[-1]) if lst[-1] else int(lst[-2])
 
     def get_yamusic_album_id(self):
+        if not self.is_yamusic_album():
+            raise QueryError('Query is not yamusic album')
+        lst = self.body.split('/')
+        return int(lst[-1]) if lst[-1] else int(lst[-2])
+
+    def get_yamusic_playlist_and_user_id(self):
         if not self.is_yamusic_playlist():
             raise QueryError('Query is not yamusic playlist')
         lst = self.body.split('/')
-        return int(lst[-1])
+        user_id = lst[-3] if lst[-1] else lst[-4]
+        playlist_id = int(lst[-1]) if lst[-1] else int(lst[-2])
+        return {"user_id": user_id, "playlist_id": playlist_id}
 
     def is_yt_video(self) -> bool:
         if re.match(r"(https?://)?(www\.)?youtu\.be|(https?://)?(www\.)?youtube\.com/watch\?v=", self.body):
@@ -33,7 +41,7 @@ class Query:
             return True
         return False
 
-    def is_yamusic_playlist(self) -> bool:
+    def is_yamusic_album(self) -> bool:
         if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/album/\d+($|/$)", self.body):
             return True
         return False
@@ -43,7 +51,7 @@ class Query:
             return True
         return False
 
-    def is_yamusic_user_playlist(self) -> bool:
+    def is_yamusic_playlist(self) -> bool:
         if re.match(r"(https?://)?(www\.)?music\.yandex\.ru/users/\w+/playlists/\d+($|/$)", self.body):
             return True
         return False
