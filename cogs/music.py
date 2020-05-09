@@ -1,11 +1,8 @@
 import asyncio
-import requests
 import logging
 
 import discord
 from discord.ext import commands
-from gtts import gTTS
-import html2text
 
 from utils import Video
 from utils.video import youtube_playlist
@@ -120,30 +117,6 @@ class Music(commands.Cog):
         session.commit()
         if len(tracks) >= 1:
             self._play(context, voice_client)
-
-    @commands.command('speak')
-    async def speak(self, context: commands.context.Context, *args):
-        already_play = False
-        all_args = " ".join(args).strip()
-        if all_args[:4] == "http":
-            html = requests.get(all_args).text
-            text_maker = html2text.HTML2Text()
-            text_maker.ignore_links = True
-            text_maker.bypass_tables = False
-            text_maker.ignore_images = True
-            text_maker.ignore_emphasis = True
-            text_maker.ignore_tables = True
-            text = text_maker.handle(html)
-        else:
-            text = all_args
-        tts = gTTS(text, lang="ru")
-        urls = tts.get_urls()
-        if not self.voice_client(context):
-            await self.clear_playlist(context)
-        for i in range(len(urls)):
-            self.add_to_playlist(context, f"{text[:30]} part {i+1}", urls[i])
-        if not already_play:
-            await self._play(context, self.voice_client(context))
 
     @commands.command('list')
     async def songs_list(self, context: commands.context.Context):
