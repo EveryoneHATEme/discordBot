@@ -1,11 +1,7 @@
 import asyncio
-import os
-import re
-import time
 
 import youtube_dl
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 from settings import YOUTUBE_API_KEY
 
